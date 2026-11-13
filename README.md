@@ -139,99 +139,16 @@ npm test
 
 ## 📡 REST API Reference
 
-### 1. Add Stock List to Watchlist
-- **Endpoint**: `POST /api/stocks`
-- **Headers**: `Content-Type: application/json`
-
-#### Option A: Array of symbols or company names
-```bash
-curl -X POST http://localhost:3000/api/stocks \
-  -H "Content-Type: application/json" \
-  -d '{"stocks": ["MRF", "EMAMILTD", "Astral Limited", "COCHINSHIP"]}'
-```
-
-#### Option B: Comma-separated string
-```bash
-curl -X POST http://localhost:3000/api/stocks \
-  -H "Content-Type: application/json" \
-  -d '{"stocks": "MRF, EMAMILTD, TALBROAUTO"}'
-```
-
-#### Option C: Single stock
-```bash
-curl -X POST http://localhost:3000/api/stocks \
-  -H "Content-Type: application/json" \
-  -d '{"stock": "Dynamatic Technologies"}'
-```
-
-**Example Response**:
-```json
-{
-  "success": true,
-  "message": "Successfully added 3 stock(s) to watchlist.",
-  "added": [
-    {
-      "symbol": "MRF",
-      "companyName": "MRF Limited",
-      "input": "MRF",
-      "matchedBy": "symbol",
-      "addedAt": "2026-11-13T08:35:00.000Z"
-    }
-  ],
-  "skipped": [],
-  "watchlistCount": 4,
-  "immediateAlertsCount": 1,
-  "immediateAlerts": [
-    {
-      "id": "alt_1731487000_abc123",
-      "stockSymbol": "MRF",
-      "stockName": "MRF Limited",
-      "isDividend": true,
-      "dividendAmount": "RS 3 PER SHARE",
-      "purpose": "INTERIM DIVIDEND - RS 3 PER SHARE",
-      "exDate": "17-Nov-2026",
-      "recordDate": "17-Nov-2026",
-      "detectedAt": "2026-11-13T08:35:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Current Watchlist
-- **Endpoint**: `GET /api/stocks`
-```bash
-curl http://localhost:3000/api/stocks
-```
-
----
-
-### 3. Remove a Stock from Watchlist
-- **Endpoint**: `DELETE /api/stocks/:symbol`
-```bash
-curl -X DELETE http://localhost:3000/api/stocks/MRF
-```
-
----
-
-### 4. Clear Watchlist
-- **Endpoint**: `DELETE /api/stocks`
-```bash
-curl -X DELETE http://localhost:3000/api/stocks
-```
-
----
-
-### 5. Get Triggered Dividend Alerts
+### 1. Get High-Yield Dividend Alerts
 - **Endpoint**: `GET /api/alerts?limit=50`
+Returns detected dividend alerts that met the `yieldQ > 3%` threshold.
 ```bash
 curl http://localhost:3000/api/alerts
 ```
 
 ---
 
-### 6. Clear Alerts History
+### 2. Clear Alerts History
 - **Endpoint**: `POST /api/alerts/clear`
 ```bash
 curl -X POST http://localhost:3000/api/alerts/clear
@@ -239,30 +156,38 @@ curl -X POST http://localhost:3000/api/alerts/clear
 
 ---
 
-### 7. Trigger Immediate Feed Check
+### 3. Trigger Immediate Feed Check
 - **Endpoint**: `POST /api/feed/check`
-Fetches fresh data from NSE RSS right now, checks against watchlist, and triggers alerts for any new items.
+Fetches fresh data from NSE RSS right now, calculates yield for all dividend announcements, and alerts if any yield > 3%.
 ```bash
 curl -X POST http://localhost:3000/api/feed/check
 ```
 
 ---
 
-### 8. View Parsed NSE Feed
+### 4. View Parsed NSE Feed
 - **Endpoint**: `GET /api/feed`
 - Query parameters:
-  - `dividendsOnly=true` (optional): Filter corporate actions to only dividend announcements.
-  - `force=true` (optional): Force a fresh live fetch bypassing the short-term cache.
+  - `dividendsOnly=true` (optional): Filter to only dividend announcements.
+  - `force=true` (optional): Force a live fetch bypassing cache.
 ```bash
 curl http://localhost:3000/api/feed?dividendsOnly=true
 ```
 
 ---
 
-### 9. System Status
+### 5. System Status
 - **Endpoint**: `GET /api/status`
 ```bash
 curl http://localhost:3000/api/status
+```
+
+---
+
+### 6. Telegram Bot Testing
+- **Endpoint**: `POST /api/telegram/test`
+```bash
+curl -X POST http://localhost:3000/api/telegram/test
 ```
 
 ---
@@ -313,4 +238,5 @@ Detected At:   2026-11-13T09:23:14.986Z
 | `TELEGRAM_CHAT_ID` | Telegram chat/channel ID | (Optional) |
 | `TIME_ZONE` | Timezone for notifications | `Asia/Kolkata` |
 | `DRY_RUN` | Test mode without sending actual Telegram messages | `false` |
+# Dividend-alert
 # Dividend-alert
