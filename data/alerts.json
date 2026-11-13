@@ -1,0 +1,23 @@
+[
+  {
+    "id": "alt_1794593790548_82q04j",
+    "actionId": "VEDL_test_high_yield",
+    "stockSymbol": "VEDL",
+    "stockName": "Vedanta Limited",
+    "matchedToken": "vedanta limited",
+    "isDividend": true,
+    "dividendAmount": "RS 20 PER SHARE",
+    "divPerShare": 20,
+    "price": 400,
+    "yieldQ": 5,
+    "yieldThreshold": 3,
+    "meetsThreshold": true,
+    "purpose": "INTERIM DIVIDEND - RS 20 PER SHARE",
+    "exDate": "25-Nov-2026",
+    "recordDate": "25-Nov-2026",
+    "series": "EQ",
+    "companyFromFeed": "Vedanta Limited",
+    "link": "https://example.com",
+    "detectedAt": "2026-11-13T18:16:30.548Z"
+  }
+]

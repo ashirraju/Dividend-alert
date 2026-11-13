@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSE Dividend Alert Hub</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-icon">🔔</div>
+        <div>
+          <h1>NSE Dividend Alert</h1>
+          <span class="subtitle">Live Corporate Action & Dividend Monitor</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <div class="connection-status" id="connectionStatus">
+          <span class="status-dot"></span> <span id="statusText">Connecting...</span>
+        </div>
+        <button id="btnTelegramModal" class="btn btn-secondary btn-sm" title="Configure Telegram bot notifications">
+          ✈️ Telegram: <span id="telegramStatusLabel">Config</span>
+        </button>
+        <button id="btnNotifyPermission" class="btn btn-secondary btn-sm" title="Enable browser notifications">
+          🔔 Enable Desktop Alerts
+        </button>
+        <button id="btnSoundToggle" class="btn btn-secondary btn-sm" title="Toggle alert sound">
+          🔊 Sound: ON
+        </button>
+        <button id="btnCheckNow" class="btn btn-primary btn-sm">
+          <span class="btn-icon">⚡</span> Check Feed Now
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Monitored Stocks</span>
+        <div class="stat-value" id="statWatchlistCount">0</div>
+        <span class="stat-desc">Active in watchlist</span>
+      </div>
+      <div class="stat-card stat-alert">
+        <span class="stat-label">Detected Alerts</span>
+        <div class="stat-value" id="statAlertsCount">0</div>
+        <span class="stat-desc">Matched from NSE feed</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Latest Feed Actions</span>
+        <div class="stat-value" id="statFeedCount">0</div>
+        <span class="stat-desc" id="statFeedTime">Awaiting update...</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Polling Interval</span>
+        <div class="stat-value" id="statPollInterval">5m</div>
+        <span class="stat-desc" id="statLastPoll">Auto-checking feed</span>
+      </div>
+    </section>
+
+    <!-- Main Content Layout -->
+    <main class="dashboard-grid">
+      
+      <!-- Watchlist Section -->
+      <section class="card watchlist-card">
+        <div class="card-header">
+          <h2>🎯 Watchlist & Monitored Stocks</h2>
+          <span class="badge" id="watchlistBadge">0 stocks</span>
+        </div>
+
+        <form id="addStockForm" class="stock-form">
+          <label for="stockInput" class="form-label">Add Stocks to Monitor</label>
+          <div class="input-group">
+            <input 
+              type="text" 
+              id="stockInput" 
+              placeholder="e.g. MRF, EMAMILTD, Astral, COCHINSHIP" 
+              autocomplete="off"
+              required
+            />
+            <button type="submit" class="btn btn-primary" id="btnAddStock">
+              + Add
+            </button>
+          </div>
+          <span class="input-hint">Enter stock symbol or company name (comma-separated for bulk add).</span>
+        </form>
+
+        <div class="quick-chips">
+          <span class="chips-label">Quick Add from Recent Feed:</span>
+          <div class="chips-list" id="chipsList">
+            <button class="chip" data-stock="MRF">MRF</button>
+            <button class="chip" data-stock="EMAMILTD">EMAMILTD</button>
+            <button class="chip" data-stock="ASTRAL">ASTRAL</button>
+            <button class="chip" data-stock="COCHINSHIP">COCHINSHIP</button>
+            <button class="chip" data-stock="TALBROAUTO">TALBROAUTO</button>
+            <button class="chip" data-stock="Dynamatic Technologies">Dynamatic</button>
+          </div>
+        </div>
+
+        <div class="watchlist-container">
+          <div class="watchlist-toolbar">
+            <span class="toolbar-title">Active Watchlist</span>
+            <button id="btnClearWatchlist" class="btn-link text-danger">Clear All</button>
+          </div>
+          <div id="watchlistList" class="watchlist-list">
+            <div class="empty-state">No stocks monitored yet. Add stocks above to receive dividend alerts.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Triggered Alerts Section -->
+      <section class="card alerts-card">
+        <div class="card-header">
+          <h2>🔔 Live Dividend Alerts</h2>
+          <div class="header-actions">
+            <button id="btnClearAlerts" class="btn btn-secondary btn-sm">Clear Alerts</button>
+          </div>
+        </div>
+
+        <div id="alertsContainer" class="alerts-container">
+          <div class="empty-state" id="emptyAlerts">
+            <div class="empty-icon">⏳</div>
+            <p>No dividend alerts triggered yet.</p>
+            <span class="empty-sub">When any company in your watchlist announces dividends or corporate actions in the NSE RSS feed, you will get instant alerts here.</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- NSE RSS Feed Explorer -->
+    <section class="card feed-card">
+      <div class="card-header">
+        <div>
+          <h2>📰 Latest NSE Corporate Actions Feed</h2>
+          <span class="card-subtitle">Source: <a href="https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml" target="_blank" rel="noreferrer">nsearchives.nseindia.com/content/RSS/Corporate_action.xml</a></span>
+        </div>
+        <div class="feed-filters">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDividendsOnly" checked />
+            Dividends Only
+          </label>
+          <input type="text" id="feedSearch" placeholder="Search company or purpose..." class="search-input" />
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="feed-table" id="feedTable">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Purpose / Action</th>
+              <th>Dividend</th>
+              <th>Ex-Date</th>
+              <th>Record Date</th>
+              <th>Watchlist Match</th>
+            </tr>
+          </thead>
+          <tbody id="feedTableBody">
+            <tr>
+              <td colspan="6" class="text-center py-4">Loading corporate actions...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>NSE Dividend Alert App &bull; Powered by Node.js &amp; NSE Official RSS Feed</p>
+    </footer>
+  </div>
+
+  <!-- Telegram Settings Modal -->
+  <div id="telegramModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>✈️ Telegram Bot Alerts Setup</h3>
+        <button class="modal-close" id="btnCloseTelegramModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Receive real-time dividend alerts directly on Telegram, formatted the same way as <strong>Global Trader News</strong>.
+        </p>
+
+        <div class="instruction-box">
+          <ol>
+            <li>Open Telegram & search for <strong>@BotFather</strong></li>
+            <li>Send <code>/newbot</code>, choose a name, and copy the <strong>HTTP API Token</strong></li>
+            <li>Start a chat with your bot (or add it to your group channel)</li>
+            <li>Get your Chat ID via <strong>@userinfobot</strong></li>
+          </ol>
+        </div>
+
+        <form id="telegramForm" class="modal-form">
+          <div class="form-group">
+            <label for="tgBotToken">Telegram Bot Token</label>
+            <input type="text" id="tgBotToken" placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRstuVWXyz" />
+          </div>
+
+          <div class="form-group">
+            <label for="tgChatId">Telegram Chat ID</label>
+            <input type="text" id="tgChatId" placeholder="e.g. 987654321 or -1001234567890" />
+          </div>
+
+          <div class="form-check">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tgDryRun" />
+              Dry Run Mode (Log message in terminal without calling Telegram API)
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="btnTestTelegram" class="btn btn-secondary">
+              📨 Send Test Alert
+            </button>
+            <button type="submit" class="btn btn-primary" id="btnSaveTelegram">
+              💾 Save Settings
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
