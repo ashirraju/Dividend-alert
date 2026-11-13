@@ -24,47 +24,13 @@ describe('API Endpoints Test Suite', () => {
     }
   });
 
-  test('POST /api/stocks - add array of stocks', async () => {
+  test('POST /api/stocks - should return 404 since add stock API was removed', async () => {
     const res = await fetch(`${baseUrl}/api/stocks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stocks: ['TCS', 'INFY'] })
+      body: JSON.stringify({ stocks: ['TCS'] })
     });
-    const data = await res.json();
-    assert.strictEqual(res.status, 201);
-    assert.strictEqual(data.success, true);
-    assert.ok(data.watchlistCount >= 2);
-  });
-
-  test('POST /api/stocks - add comma-separated string', async () => {
-    const res = await fetch(`${baseUrl}/api/stocks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stocks: 'HDFCBANK, RELIANCE' })
-    });
-    const data = await res.json();
-    assert.strictEqual(res.status, 201);
-    assert.strictEqual(data.success, true);
-  });
-
-  test('GET /api/stocks - retrieve watchlist', async () => {
-    const res = await fetch(`${baseUrl}/api/stocks`);
-    const data = await res.json();
-    assert.strictEqual(res.status, 200);
-    assert.strictEqual(data.success, true);
-    assert.ok(Array.isArray(data.stocks));
-    assert.ok(data.stocks.some(s => s.symbol === 'TCS'));
-  });
-
-  test('DELETE /api/stocks/:symbol - remove stock', async () => {
-    const res = await fetch(`${baseUrl}/api/stocks/TCS`, { method: 'DELETE' });
-    const data = await res.json();
-    assert.strictEqual(res.status, 200);
-    assert.strictEqual(data.success, true);
-
-    const getRes = await fetch(`${baseUrl}/api/stocks`);
-    const getData = await getRes.json();
-    assert.strictEqual(getData.stocks.some(s => s.symbol === 'TCS'), false);
+    assert.strictEqual(res.status, 404);
   });
 
   test('GET /api/alerts - retrieve alerts', async () => {
@@ -81,6 +47,15 @@ describe('API Endpoints Test Suite', () => {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(data.success, true);
     assert.ok(data.poller);
-    assert.strictEqual(typeof data.watchlistCount, 'number');
+    assert.strictEqual(typeof data.yieldThreshold, 'number');
+    assert.strictEqual(typeof data.alertsCount, 'number');
+  });
+
+  test('GET /api/telegram/status - retrieve telegram status', async () => {
+    const res = await fetch(`${baseUrl}/api/telegram/status`);
+    const data = await res.json();
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(data.success, true);
+    assert.strictEqual(typeof data.configured, 'boolean');
   });
 });

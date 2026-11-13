@@ -42,14 +42,14 @@
     <!-- Stats Bar -->
     <section class="stats-grid">
       <div class="stat-card">
-        <span class="stat-label">Monitored Stocks</span>
-        <div class="stat-value" id="statWatchlistCount">0</div>
-        <span class="stat-desc">Active in watchlist</span>
+        <span class="stat-label">Yield Filter</span>
+        <div class="stat-value" id="statYieldThreshold">&gt; 3%</div>
+        <span class="stat-desc">Scanning ALL NSE Stocks</span>
       </div>
       <div class="stat-card stat-alert">
-        <span class="stat-label">Detected Alerts</span>
+        <span class="stat-label">High-Yield Alerts</span>
         <div class="stat-value" id="statAlertsCount">0</div>
-        <span class="stat-desc">Matched from NSE feed</span>
+        <span class="stat-desc">Yield &gt; 3% Detected</span>
       </div>
       <div class="stat-card">
         <span class="stat-label">Latest Feed Actions</span>
@@ -57,67 +57,35 @@
         <span class="stat-desc" id="statFeedTime">Awaiting update...</span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Polling Interval</span>
+        <span class="stat-label">Auto Poller</span>
         <div class="stat-value" id="statPollInterval">5m</div>
-        <span class="stat-desc" id="statLastPoll">Auto-checking feed</span>
+        <span class="stat-desc" id="statLastPoll">Checking NSE RSS</span>
       </div>
     </section>
 
     <!-- Main Content Layout -->
-    <main class="dashboard-grid">
-      
-      <!-- Watchlist Section -->
-      <section class="card watchlist-card">
-        <div class="card-header">
-          <h2>🎯 Watchlist & Monitored Stocks</h2>
-          <span class="badge" id="watchlistBadge">0 stocks</span>
-        </div>
-
-        <form id="addStockForm" class="stock-form">
-          <label for="stockInput" class="form-label">Add Stocks to Monitor</label>
-          <div class="input-group">
-            <input 
-              type="text" 
-              id="stockInput" 
-              placeholder="e.g. MRF, EMAMILTD, Astral, COCHINSHIP" 
-              autocomplete="off"
-              required
-            />
-            <button type="submit" class="btn btn-primary" id="btnAddStock">
-              + Add
-            </button>
-          </div>
-          <span class="input-hint">Enter stock symbol or company name (comma-separated for bulk add).</span>
-        </form>
-
-        <div class="quick-chips">
-          <span class="chips-label">Quick Add from Recent Feed:</span>
-          <div class="chips-list" id="chipsList">
-            <button class="chip" data-stock="MRF">MRF</button>
-            <button class="chip" data-stock="EMAMILTD">EMAMILTD</button>
-            <button class="chip" data-stock="ASTRAL">ASTRAL</button>
-            <button class="chip" data-stock="COCHINSHIP">COCHINSHIP</button>
-            <button class="chip" data-stock="TALBROAUTO">TALBROAUTO</button>
-            <button class="chip" data-stock="Dynamatic Technologies">Dynamatic</button>
-          </div>
-        </div>
-
-        <div class="watchlist-container">
-          <div class="watchlist-toolbar">
-            <span class="toolbar-title">Active Watchlist</span>
-            <button id="btnClearWatchlist" class="btn-link text-danger">Clear All</button>
-          </div>
-          <div id="watchlistList" class="watchlist-list">
-            <div class="empty-state">No stocks monitored yet. Add stocks above to receive dividend alerts.</div>
-          </div>
-        </div>
-      </section>
-
+    <main class="dashboard-grid full-width">
       <!-- Triggered Alerts Section -->
       <section class="card alerts-card">
         <div class="card-header">
-          <h2>🔔 Live Dividend Alerts</h2>
+          <div>
+            <h2>🔔 Live High-Yield Dividend Alerts</h2>
+            <span class="card-subtitle">Automatically triggered when (divPerShare / LTP) &times; 100 &gt; 3%</span>
+          </div>
           <div class="header-actions">
+            <button id="btnClearAlerts" class="btn btn-secondary btn-sm">Clear Alerts</button>
+          </div>
+        </div>
+
+        <div id="alertsContainer" class="alerts-container">
+          <div class="empty-state" id="emptyAlerts">
+            <div class="empty-icon">⏳</div>
+            <p>No high-yield dividend alerts triggered yet.</p>
+            <span class="empty-sub">Scanning all NSE corporate actions automatically. When any company announces a dividend yielding &gt; 3% based on current LTP, you will receive instant alerts here and on Telegram.</span>
+          </div>
+        </div>
+      </section>
+    </main>
             <button id="btnClearAlerts" class="btn btn-secondary btn-sm">Clear Alerts</button>
           </div>
         </div>
@@ -158,7 +126,7 @@
               <th>Dividend</th>
               <th>Ex-Date</th>
               <th>Record Date</th>
-              <th>Watchlist Match</th>
+              <th>Action Type</th>
             </tr>
           </thead>
           <tbody id="feedTableBody">

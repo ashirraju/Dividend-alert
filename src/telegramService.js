@@ -245,7 +245,7 @@ class TelegramService {
     }
   }
 
-  async sendStartupNotification({ watchlistCount = 0 } = {}) {
+  async sendStartupNotification({ yieldThreshold = 3 } = {}) {
     if (!this.isConfigured() && !this.dryRun) return;
 
     const startedAt = formatTimestamp(new Date().toISOString(), this.timeZone);
@@ -254,8 +254,8 @@ class TelegramService {
       `🕒 <i>${escapeHtml(startedAt)}</i>`,
       '',
       '📡 <b>Feed:</b> NSE Corporate Actions RSS',
-      `🎯 <b>Watchlist:</b> ${watchlistCount} stock(s) active`,
-      '⏳ <b>Status:</b> Server started and waiting for dividend updates...',
+      `🎯 <b>Filter:</b> Dividend Yield &gt; ${yieldThreshold}% (LTP based)`,
+      '⏳ <b>Status:</b> Scanning ALL NSE stocks, waiting for dividend updates...',
       '------'
     ].join('\n');
 

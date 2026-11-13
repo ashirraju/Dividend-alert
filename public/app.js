@@ -1,7 +1,6 @@
 // State
 let soundEnabled = true;
 let desktopNotificationsEnabled = false;
-let watchlist = [];
 let feedActions = [];
 
 // DOM Elements
@@ -11,19 +10,12 @@ const btnCheckNow = document.getElementById('btnCheckNow');
 const btnSoundToggle = document.getElementById('btnSoundToggle');
 const btnNotifyPermission = document.getElementById('btnNotifyPermission');
 
-const statWatchlistCount = document.getElementById('statWatchlistCount');
+const statYieldThreshold = document.getElementById('statYieldThreshold');
 const statAlertsCount = document.getElementById('statAlertsCount');
 const statFeedCount = document.getElementById('statFeedCount');
 const statFeedTime = document.getElementById('statFeedTime');
 const statLastPoll = document.getElementById('statLastPoll');
 const statPollInterval = document.getElementById('statPollInterval');
-
-const addStockForm = document.getElementById('addStockForm');
-const stockInput = document.getElementById('stockInput');
-const watchlistBadge = document.getElementById('watchlistBadge');
-const watchlistList = document.getElementById('watchlistList');
-const btnClearWatchlist = document.getElementById('btnClearWatchlist');
-const chipsList = document.getElementById('chipsList');
 
 const alertsContainer = document.getElementById('alertsContainer');
 const emptyAlerts = document.getElementById('emptyAlerts');
@@ -74,8 +66,9 @@ function playAlertChime() {
 // Show Desktop Notification
 function triggerDesktopNotification(alert) {
   if (desktopNotificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
-    new Notification(`Dividend Alert: ${alert.stockName || alert.stockSymbol}`, {
-      body: `${alert.purpose}\nEx-Date: ${alert.exDate || 'N/A'}`,
+    const yieldText = alert.yieldQ !== null ? ` (Yield: ${alert.yieldQ}%)` : '';
+    new Notification(`High-Yield Alert: ${alert.stockName || alert.stockSymbol}${yieldText}`, {
+      body: `${alert.purpose}\nEx-Date: ${alert.exDate || 'N/A'}\nLTP: ₹${alert.price || 'N/A'}`,
       icon: '🔔'
     });
   }
@@ -100,9 +93,6 @@ function initEventStream() {
       const msg = JSON.parse(e.data);
       if (msg.type === 'alert') {
         onNewAlertReceived(msg.data);
-      } else if (msg.type === 'watchlist') {
-        watchlist = msg.data;
-        renderWatchlist();
       }
     } catch (err) {
       console.error('SSE parse error:', err);
@@ -115,7 +105,6 @@ function onNewAlertReceived(alert) {
   playAlertChime();
   triggerDesktopNotification(alert);
 
-  // If empty state is visible, hide it
   if (emptyAlerts) {
     emptyAlerts.style.display = 'none';
   }
@@ -124,12 +113,9 @@ function onNewAlertReceived(alert) {
   const alertCard = createAlertElement(alert);
   alertsContainer.insertBefore(alertCard, alertsContainer.firstChild);
 
-  // Update counts
+  // Update count
   const currentCount = parseInt(statAlertsCount.innerText || '0', 10);
   statAlertsCount.innerText = currentCount + 1;
-
-  // Refresh feed table match badges
-  renderFeedTable();
 }
 
 function createAlertElement(alert) {
@@ -151,7 +137,7 @@ function createAlertElement(alert) {
     </div>
     <div class="alert-meta">
       ${alert.yieldQ !== null && alert.yieldQ !== undefined ? `<span class="alert-meta-tag highlight">📈 Yield: <strong>${escapeHtml(String(alert.yieldQ))}%</strong></span>` : ''}
-      ${alert.price !== null && alert.price !== undefined ? `<span class="alert-meta-tag">🏷️ LTP: <strong>₹${escapeHtml(String(alert.price))}</strong></span>` : ''}
+      ${alert.price !== null && alert.price !== undefined ? `<span class="alert-meta-tag">🏷️ Stock LTP: <strong>₹${escapeHtml(String(alert.price))}</strong></span>` : ''}
       ${alert.divPerShare !== null && alert.divPerShare !== undefined ? `<span class="alert-meta-tag">💰 Div: <strong>₹${escapeHtml(String(alert.divPerShare))}</strong></span>` : (alert.dividendAmount ? `<span class="alert-meta-tag highlight">💰 ${escapeHtml(alert.dividendAmount)}</span>` : '')}
       <span class="alert-meta-tag">📅 Ex-Date: <strong>${escapeHtml(alert.exDate || 'N/A')}</strong></span>
       ${alert.recordDate ? `<span class="alert-meta-tag">📋 Record Date: ${escapeHtml(alert.recordDate)}</span>` : ''}
@@ -165,26 +151,15 @@ function createAlertElement(alert) {
 }
 
 // API Requests
-async function fetchWatchlist() {
-  try {
-    const res = await fetch('/api/stocks');
-    const data = await res.json();
-    if (data.success) {
-      watchlist = data.stocks;
-      renderWatchlist();
-    }
-  } catch (err) {
-    console.error('Error fetching watchlist:', err);
-  }
-}
-
 async function fetchAlerts() {
   try {
     const res = await fetch('/api/alerts');
     const data = await res.json();
     if (data.success) {
-      renderAlerts(data.alerts);
-      statAlertsCount.innerText = data.count;
+      // Filter to only display alerts that met the yield threshold
+      const validAlerts = data.alerts.filter(a => a.meetsThreshold !== false);
+      renderAlerts(validAlerts);
+      statAlertsCount.innerText = validAlerts.length;
     }
   } catch (err) {
     console.error('Error fetching alerts:', err);
@@ -212,8 +187,9 @@ async function fetchStatus() {
     const res = await fetch('/api/status');
     const data = await res.json();
     if (data.success) {
-      statWatchlistCount.innerText = data.watchlistCount;
-      statAlertsCount.innerText = data.alertsCount;
+      if (statYieldThreshold && data.yieldThreshold !== undefined) {
+        statYieldThreshold.innerText = `> ${data.yieldThreshold}%`;
+      }
       if (data.poller) {
         statPollInterval.innerText = `${Math.round(data.poller.intervalSeconds / 60)}m`;
         if (data.poller.lastPollTime) {
@@ -224,27 +200,6 @@ async function fetchStatus() {
   } catch (err) {
     console.error('Error fetching status:', err);
   }
-}
-
-// Watchlist Rendering
-function renderWatchlist() {
-  statWatchlistCount.innerText = watchlist.length;
-  watchlistBadge.innerText = `${watchlist.length} stock${watchlist.length === 1 ? '' : 's'}`;
-
-  if (watchlist.length === 0) {
-    watchlistList.innerHTML = `<div class="empty-state">No stocks monitored yet. Add stocks above to receive dividend alerts.</div>`;
-    return;
-  }
-
-  watchlistList.innerHTML = watchlist.map(stock => `
-    <div class="watchlist-item" data-symbol="${escapeHtml(stock.symbol || '')}">
-      <div class="stock-info">
-        <span class="stock-symbol">${escapeHtml(stock.symbol || 'CUSTOM')}</span>
-        <span class="stock-name">${escapeHtml(stock.companyName || stock.input)}</span>
-      </div>
-      <button class="btn-remove" title="Remove stock" onclick="removeStock('${escapeHtml(stock.symbol || stock.companyName)}')">&times;</button>
-    </div>
-  `).join('');
 }
 
 // Alerts Rendering
@@ -282,7 +237,6 @@ function renderFeedTable() {
   }
 
   feedTableBody.innerHTML = filtered.map(item => {
-    const isWatched = isItemInWatchlist(item);
     return `
       <tr>
         <td><strong>${escapeHtml(item.companyName)}</strong></td>
@@ -290,93 +244,13 @@ function renderFeedTable() {
         <td>${item.dividendAmount ? `<span class="dividend-tag">${escapeHtml(item.dividendAmount)}</span>` : '-'}</td>
         <td>${escapeHtml(item.exDate || '-')}</td>
         <td>${escapeHtml(item.recordDate || '-')}</td>
-        <td>${isWatched ? '<span class="tag-matched">✓ MATCHED</span>' : '<span class="tag-unmatched">-</span>'}</td>
+        <td>${item.isDividend ? '<span class="tag-matched">💰 DIVIDEND</span>' : '<span class="tag-unmatched">CORPORATE ACTION</span>'}</td>
       </tr>
     `;
   }).join('');
 }
 
-function isItemInWatchlist(actionItem) {
-  const text = `${actionItem.rawTitle} ${actionItem.rawDescription}`.toLowerCase();
-  return watchlist.some(w => {
-    if (w.symbol && text.includes(w.symbol.toLowerCase())) return true;
-    if (w.companyName && text.includes(w.companyName.toLowerCase())) return true;
-    if (w.input && text.includes(w.input.toLowerCase())) return true;
-    return false;
-  });
-}
-
 // Actions
-async function addStocks(stockNames) {
-  try {
-    const res = await fetch('/api/stocks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stocks: stockNames })
-    });
-    const data = await res.json();
-    if (data.success) {
-      stockInput.value = '';
-      await fetchWatchlist();
-      await fetchAlerts();
-      await fetchFeed();
-      await fetchStatus();
-
-      if (data.immediateAlertsCount > 0) {
-        playAlertChime();
-        alert(`🔔 Alert: ${data.immediateAlertsCount} immediate dividend/corporate action alert(s) found for newly added stocks!`);
-      }
-    } else {
-      alert('Error adding stock: ' + data.error);
-    }
-  } catch (err) {
-    alert('Failed to connect to server: ' + err.message);
-  }
-}
-
-window.removeStock = async function(symbolOrName) {
-  try {
-    const res = await fetch(`/api/stocks/${encodeURIComponent(symbolOrName)}`, {
-      method: 'DELETE'
-    });
-    const data = await res.json();
-    if (data.success) {
-      await fetchWatchlist();
-      renderFeedTable();
-      await fetchStatus();
-    }
-  } catch (err) {
-    console.error('Error removing stock:', err);
-  }
-};
-
-// Event Listeners
-addStockForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const val = stockInput.value.trim();
-  if (val) {
-    addStocks(val);
-  }
-});
-
-chipsList.addEventListener('click', (e) => {
-  if (e.target.classList.contains('chip')) {
-    const stock = e.target.getAttribute('data-stock');
-    if (stock) {
-      addStocks(stock);
-    }
-  }
-});
-
-btnClearWatchlist.addEventListener('click', async () => {
-  if (confirm('Clear all stocks from your watchlist?')) {
-    await fetch('/api/stocks', { method: 'DELETE' });
-    await fetchWatchlist();
-    renderFeedTable();
-    await fetchStatus();
-  }
-});
-
 btnClearAlerts.addEventListener('click', async () => {
   if (confirm('Clear all alert history?')) {
     await fetch('/api/alerts/clear', { method: 'POST' });
@@ -397,7 +271,7 @@ btnCheckNow.addEventListener('click', async () => {
 
     if (data.newAlertsCount > 0) {
       playAlertChime();
-      alert(`🔔 Found ${data.newAlertsCount} new alert(s)!`);
+      alert(`🔔 Found ${data.newAlertsCount} new high-yield dividend alert(s)!`);
     }
   } catch (err) {
     alert('Failed to check feed: ' + err.message);
@@ -532,7 +406,6 @@ function escapeHtml(str) {
 // Initial Boot
 window.addEventListener('DOMContentLoaded', async () => {
   initEventStream();
-  await fetchWatchlist();
   await fetchAlerts();
   await fetchFeed();
   await fetchStatus();

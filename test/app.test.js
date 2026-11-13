@@ -86,10 +86,6 @@ describe('Dividend Alert App Test Suite', () => {
   });
 
   describe('Alert Manager with Dividend Yield Filter (yieldQ > 3%)', () => {
-    before(() => {
-      alertManager.clearWatchlist();
-      alertManager.addStocks(['MRF', 'VEDL']);
-    });
 
     test('should calculate yield and skip notification when yield <= 3%', async () => {
       alertManager.clearAlerts();

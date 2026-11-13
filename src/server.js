@@ -50,99 +50,6 @@ app.get('/api/stream', (req, res) => {
 });
 
 /**
- * POST /api/stocks
- * Add one or multiple stocks to monitor.
- * Accepts:
- *   { "stocks": ["MRF", "TCS", "Emami"] }
- *   { "stocks": "MRF, TCS, Astral" }
- *   { "stock": "MRF" }
- *   ["MRF", "TCS"]
- */
-app.post('/api/stocks', async (req, res) => {
-  try {
-    let payload = req.body;
-    if (Array.isArray(payload)) {
-      payload = { stocks: payload };
-    }
-
-    const result = alertManager.addStocks(payload);
-
-    // Immediately evaluate feed against the newly added stocks
-    let immediateAlerts = [];
-    try {
-      let feed = poller.getCachedFeed();
-      if (!feed) {
-        feed = await rssService.getLatestActions();
-      }
-      if (feed && feed.actions) {
-        const evalResult = await alertManager.evaluateActions(feed.actions);
-        immediateAlerts = evalResult.newAlerts;
-      }
-    } catch (feedErr) {
-      console.warn('[Server] Could not immediately check feed upon adding stock:', feedErr.message);
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: `Successfully added ${result.totalAdded} stock(s) to watchlist.`,
-      added: result.added,
-      skipped: result.skipped,
-      watchlistCount: result.currentWatchlistCount,
-      immediateAlertsCount: immediateAlerts.length,
-      immediateAlerts
-    });
-  } catch (err) {
-    console.error('[API] Error adding stocks:', err);
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-/**
- * GET /api/stocks
- * Get list of all currently watched stocks
- */
-app.get('/api/stocks', (req, res) => {
-  const watchlist = alertManager.getWatchlist();
-  res.json({
-    success: true,
-    count: watchlist.length,
-    stocks: watchlist
-  });
-});
-
-/**
- * DELETE /api/stocks/:identifier
- * Remove stock by symbol, company name, or input keyword
- */
-app.delete('/api/stocks/:identifier', (req, res) => {
-  const { identifier } = req.params;
-  const removed = alertManager.removeStock(identifier);
-  if (removed) {
-    return res.json({
-      success: true,
-      message: `Removed '${identifier}' from watchlist.`,
-      currentWatchlistCount: alertManager.getWatchlist().length
-    });
-  }
-  return res.status(404).json({
-    success: false,
-    message: `Stock '${identifier}' not found in watchlist.`
-  });
-});
-
-/**
- * DELETE /api/stocks
- * Clear all stocks from watchlist
- */
-app.delete('/api/stocks', (req, res) => {
-  alertManager.clearWatchlist();
-  res.json({
-    success: true,
-    message: 'Watchlist cleared.'
-  });
-});
-
-/**
  * GET /api/alerts
  * Get all detected alerts
  */
@@ -221,13 +128,13 @@ app.post('/api/feed/check', async (req, res) => {
 
 /**
  * GET /api/status
- * Get status of poller, watchlist, and alerts
+ * Get status of poller, yield threshold, and alerts
  */
 app.get('/api/status', (req, res) => {
   res.json({
     success: true,
     poller: poller.getStatus(),
-    watchlistCount: alertManager.getWatchlist().length,
+    yieldThreshold: alertManager.getYieldThreshold(),
     alertsCount: alertManager.getAlerts().length,
     systemTime: new Date().toISOString()
   });
@@ -341,12 +248,12 @@ if (require.main === module) {
     console.log(`\n============================================================`);
     console.log(`🚀 NSE Dividend Alert App is running on http://localhost:${PORT}`);
     console.log(`📡 RSS Feed: https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml`);
-    console.log(`🔔 Watchlist loaded: ${alertManager.getWatchlist().length} stock(s)`);
+    console.log(`🎯 Yield Filter: Auto-scanning ALL stocks for Dividend Yield > ${alertManager.getYieldThreshold()}%`);
     console.log(`============================================================\n`);
 
     // Notify Telegram group that server has started
     telegramService.sendStartupNotification({
-      watchlistCount: alertManager.getWatchlist().length
+      yieldThreshold: alertManager.getYieldThreshold()
     }).catch(err => {
       console.warn('[Telegram] Startup notification notice:', err.message);
     });
