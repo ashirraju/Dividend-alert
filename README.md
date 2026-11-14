@@ -7,11 +7,11 @@ A real-time Node.js application that continuously monitors the official National
 ## 🌟 Key Features
 
 - **Official NSE RSS Integration**: Fetches and parses corporate actions and dividends from `https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml`.
-- **Real-Time Stock LTP & Yield Filter**:
-  - Automatically fetches the live **LTP** (Last Traded Price) for monitored NSE equities.
+- **Real-Time Stock LTP & Calculated Yield**:
+  - Automatically fetches the live **LTP** (Last Traded Price) for any company in the feed.
   - Computes dividend yield:
     $$\text{yieldQ} = \left(\frac{\text{divPerShare}}{\text{price}}\right) \times 100$$
-  - **Yield Filtering Rule**: Only notifies users if $\text{yieldQ} > 3\%$ (configurable via `MIN_DIVIDEND_YIELD`). Announcements with yield $\le 3\%$ are recorded in dashboard history but notifications (Telegram, audio chime, push notifications) are suppressed to eliminate low-yield noise.
+  - **Notify All Dividends**: Yield threshold filtering is paused (`PAUSE_YIELD_FILTER=true`), so **every dividend announcement** triggers an alert with live LTP and calculated yield percentage. (Can be toggled back to `yieldQ > 3%` anytime by setting `PAUSE_YIELD_FILTER=false`).
 - **Intelligent Stock Resolution**:
   - Automatically loads and cross-references 2,600+ NSE listed equities (`EQUITY_L.csv`).
   - Supports NSE symbols (e.g., `MRF`, `EMAMILTD`, `ASTRAL`, `COCHINSHIP`, `TCS`) or full/partial company names (e.g., `Dynamatic Technologies`, `Emami`, `Cochin Shipyard`).
@@ -233,7 +233,8 @@ Detected At:   2026-11-13T09:23:14.986Z
 | `PORT` | HTTP Server port | `3000` |
 | `NSE_RSS_URL` | Official NSE RSS URL | `https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml` |
 | `POLL_INTERVAL_MS` | Auto-poll interval in milliseconds | `300000` (5 minutes) |
-| `MIN_DIVIDEND_YIELD` | Minimum dividend yield percentage to trigger notification | `3` (only notify if yield > 3%) |
+| `PAUSE_YIELD_FILTER` | Set to `true` to pause yield filter and notify ALL dividend alerts | `true` |
+| `MIN_DIVIDEND_YIELD` | Minimum dividend yield percentage when yield filter is active | `3` |
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | (Optional) |
 | `TELEGRAM_CHAT_ID` | Telegram chat/channel ID | (Optional) |
 | `TIME_ZONE` | Timezone for notifications | `Asia/Kolkata` |

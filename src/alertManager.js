@@ -12,8 +12,18 @@ class AlertManager extends EventEmitter {
     this.alerts = [];    // Array of triggered alerts
     this.seenActionIds = new Set();
     this.minYieldThreshold = parseFloat(process.env.MIN_DIVIDEND_YIELD || '3');
+    // User requested: pause yieldQ > 3% now, notify all dividend alert
+    this.pauseYieldFilter = process.env.PAUSE_YIELD_FILTER !== 'false';
 
     this.init();
+  }
+
+  setPauseYieldFilter(paused) {
+    this.pauseYieldFilter = !!paused;
+  }
+
+  isYieldFilterPaused() {
+    return this.pauseYieldFilter;
   }
 
   setYieldThreshold(threshold) {
@@ -105,12 +115,18 @@ class AlertManager extends EventEmitter {
         let yieldQ = null;
         let shouldNotify = false;
 
-        if (action.isDividend && divPerShare !== null && price !== null && price > 0) {
-          // Formula: const yieldQ = (divPerShare / price) * 100;
+        // Calculate yield if dividend and price are available
+        if (divPerShare !== null && price !== null && price > 0) {
           yieldQ = (divPerShare / price) * 100;
+        }
 
-          // Rule: if yieldQ > 3 then only notify users
-          if (yieldQ > this.minYieldThreshold) {
+        // Notification condition:
+        // When pauseYieldFilter is true -> notify on ALL dividend announcements
+        // When pauseYieldFilter is false -> only notify if yieldQ > minYieldThreshold
+        if (action.isDividend) {
+          if (this.pauseYieldFilter) {
+            shouldNotify = true;
+          } else if (yieldQ !== null && yieldQ > this.minYieldThreshold) {
             shouldNotify = true;
           }
         }
@@ -125,7 +141,8 @@ class AlertManager extends EventEmitter {
           divPerShare,
           price, // LTP of the stock
           yieldQ: yieldQ !== null ? parseFloat(yieldQ.toFixed(2)) : null,
-          yieldThreshold: this.minYieldThreshold,
+          yieldThreshold: this.pauseYieldFilter ? null : this.minYieldThreshold,
+          yieldFilterPaused: this.pauseYieldFilter,
           meetsThreshold: shouldNotify,
           purpose: action.purpose,
           exDate: action.exDate,
@@ -177,19 +194,19 @@ class AlertManager extends EventEmitter {
    */
   logConsoleAlert(alert) {
     const divider = '============================================================';
-    const tag = '🔔💰 [HIGH YIELD DIVIDEND ALERT] 💰🔔';
+    const tag = alert.yieldQ !== null ? `🔔💰 [DIVIDEND ALERT (${alert.yieldQ}% YIELD)] 💰🔔` : '🔔💰 [DIVIDEND ALERT] 💰🔔';
     
     console.log('\n' + divider);
     console.log(`\x1b[1m\x1b[32m${tag}\x1b[0m`);
     console.log(`Company:        \x1b[1m${alert.stockName} (${alert.stockSymbol || 'N/A'})\x1b[0m`);
-    if (alert.yieldQ !== null) {
-      console.log(`Dividend Yield: \x1b[1m\x1b[32m${alert.yieldQ}%\x1b[0m (> ${alert.yieldThreshold}% threshold met)`);
+    if (alert.divPerShare !== null) {
+      console.log(`Div Per Share:  \x1b[1m\x1b[36m₹${alert.divPerShare}\x1b[0m`);
     }
     if (alert.price !== null) {
       console.log(`Stock LTP:      \x1b[1m\x1b[36m₹${alert.price}\x1b[0m`);
     }
-    if (alert.divPerShare !== null) {
-      console.log(`Div Per Share:  \x1b[1m\x1b[36m₹${alert.divPerShare}\x1b[0m`);
+    if (alert.yieldQ !== null) {
+      console.log(`Dividend Yield: \x1b[1m\x1b[32m${alert.yieldQ}%\x1b[0m`);
     }
     console.log(`Purpose:        \x1b[33m${alert.purpose}\x1b[0m`);
     console.log(`Ex-Date:        \x1b[35m${alert.exDate || 'N/A'}\x1b[0m`);

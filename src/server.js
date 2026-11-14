@@ -128,12 +128,13 @@ app.post('/api/feed/check', async (req, res) => {
 
 /**
  * GET /api/status
- * Get status of poller, yield threshold, and alerts
+ * Get status of poller, yield filter, and alerts
  */
 app.get('/api/status', (req, res) => {
   res.json({
     success: true,
     poller: poller.getStatus(),
+    yieldFilterPaused: alertManager.isYieldFilterPaused(),
     yieldThreshold: alertManager.getYieldThreshold(),
     alertsCount: alertManager.getAlerts().length,
     systemTime: new Date().toISOString()
@@ -248,11 +249,15 @@ if (require.main === module) {
     console.log(`\n============================================================`);
     console.log(`🚀 NSE Dividend Alert App is running on http://localhost:${PORT}`);
     console.log(`📡 RSS Feed: https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml`);
-    console.log(`🎯 Yield Filter: Auto-scanning ALL stocks for Dividend Yield > ${alertManager.getYieldThreshold()}%`);
+    const modeDesc = alertManager.isYieldFilterPaused()
+      ? '🔔 Filter: PAUSED (Notifying on ALL Dividend Announcements)'
+      : `🎯 Filter: Yield > ${alertManager.getYieldThreshold()}%`;
+    console.log(`${modeDesc}`);
     console.log(`============================================================\n`);
 
     // Notify Telegram group that server has started
     telegramService.sendStartupNotification({
+      yieldFilterPaused: alertManager.isYieldFilterPaused(),
       yieldThreshold: alertManager.getYieldThreshold()
     }).catch(err => {
       console.warn('[Telegram] Startup notification notice:', err.message);

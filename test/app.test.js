@@ -85,16 +85,16 @@ describe('Dividend Alert App Test Suite', () => {
     });
   });
 
-  describe('Alert Manager with Dividend Yield Filter (yieldQ > 3%)', () => {
+  describe('Alert Manager - Paused Yield Filter (Notify ALL Dividend Alerts)', () => {
 
-    test('should calculate yield and skip notification when yield <= 3%', async () => {
+    test('should notify all dividend alerts when yield filter is paused', async () => {
       alertManager.clearAlerts();
-      // Pre-seed cache with price for MRF: 120,000
+      alertManager.setPauseYieldFilter(true);
       priceService.cache.set('MRF', { ltp: 120000, currency: 'INR', timestamp: Date.now() });
 
       const sampleActions = [
         {
-          id: 'test_low_yield',
+          id: 'test_mrf_div',
           companyName: 'MRF Limited',
           rawTitle: 'MRF Limited - Ex-Date: 17-Nov-2026',
           rawDescription: 'SERIES:EQ |PURPOSE:INTERIM DIVIDEND - RS 3 PER SHARE |FACE VALUE:10 |RECORD DATE:17-Nov-2026',
@@ -110,47 +110,65 @@ describe('Dividend Alert App Test Suite', () => {
       ];
 
       const evalRes = await alertManager.evaluateActions(sampleActions);
-      // Yield = (3 / 120000) * 100 = 0.0025% <= 3%, so notification is skipped
-      assert.strictEqual(evalRes.newAlertsCount, 0);
-
-      const allAlerts = alertManager.getAlerts();
-      assert.strictEqual(allAlerts.length, 1);
-      assert.strictEqual(allAlerts[0].meetsThreshold, false);
-      assert.ok(allAlerts[0].yieldQ < 3);
+      // Yield filter is paused -> notification triggered for ALL dividends
+      assert.strictEqual(evalRes.newAlertsCount, 1);
+      assert.strictEqual(evalRes.newAlerts[0].stockSymbol, 'MRF');
+      assert.strictEqual(evalRes.newAlerts[0].meetsThreshold, true);
+      assert.ok(evalRes.newAlerts[0].yieldQ !== null);
     });
 
-    test('should calculate yield and notify when yield > 3%', async () => {
+    test('should not notify for non-dividend corporate actions', async () => {
       alertManager.clearAlerts();
-      // Pre-seed cache with price for VEDL: 400
-      priceService.cache.set('VEDL', { ltp: 400, currency: 'INR', timestamp: Date.now() });
+      alertManager.setPauseYieldFilter(true);
+
+      const nonDivActions = [
+        {
+          id: 'test_buyback',
+          companyName: 'FDC Limited',
+          rawTitle: 'FDC Limited - Ex-Date: 13-Nov-2026',
+          rawDescription: 'SERIES:EQ |PURPOSE:BUY BACK |FACE VALUE:1',
+          isDividend: false,
+          dividendAmount: null,
+          divPerShare: null,
+          purpose: 'BUY BACK',
+          exDate: '13-Nov-2026',
+          series: 'EQ',
+          link: 'https://example.com'
+        }
+      ];
+
+      const evalRes = await alertManager.evaluateActions(nonDivActions);
+      assert.strictEqual(evalRes.newAlertsCount, 0);
+    });
+
+    test('should respect yield filter when pause is toggled off', async () => {
+      alertManager.clearAlerts();
+      alertManager.setPauseYieldFilter(false); // Enable filter > 3%
+      priceService.cache.set('MRF', { ltp: 120000, currency: 'INR', timestamp: Date.now() });
 
       const sampleActions = [
         {
-          id: 'test_high_yield',
-          companyName: 'Vedanta Limited',
-          rawTitle: 'Vedanta Limited - Ex-Date: 25-Nov-2026',
-          rawDescription: 'SERIES:EQ |PURPOSE:INTERIM DIVIDEND - RS 20 PER SHARE |FACE VALUE:1 |RECORD DATE:25-Nov-2026',
+          id: 'test_mrf_low_yield',
+          companyName: 'MRF Limited',
+          rawTitle: 'MRF Limited - Ex-Date: 17-Nov-2026',
+          rawDescription: 'SERIES:EQ |PURPOSE:INTERIM DIVIDEND - RS 3 PER SHARE |FACE VALUE:10 |RECORD DATE:17-Nov-2026',
           isDividend: true,
-          dividendAmount: 'RS 20 PER SHARE',
-          divPerShare: 20,
-          purpose: 'INTERIM DIVIDEND - RS 20 PER SHARE',
-          exDate: '25-Nov-2026',
-          recordDate: '25-Nov-2026',
+          dividendAmount: 'RS 3 PER SHARE',
+          divPerShare: 3,
+          purpose: 'INTERIM DIVIDEND - RS 3 PER SHARE',
+          exDate: '17-Nov-2026',
+          recordDate: '17-Nov-2026',
           series: 'EQ',
           link: 'https://example.com'
         }
       ];
 
       const evalRes = await alertManager.evaluateActions(sampleActions);
-      // Yield = (20 / 400) * 100 = 5.0% > 3%, notification triggered!
-      assert.strictEqual(evalRes.newAlertsCount, 1);
-      assert.strictEqual(evalRes.newAlerts[0].stockSymbol, 'VEDL');
-      assert.strictEqual(evalRes.newAlerts[0].yieldQ, 5.0);
-      assert.strictEqual(evalRes.newAlerts[0].meetsThreshold, true);
+      // Yield = 0.0025% <= 3%, notification skipped
+      assert.strictEqual(evalRes.newAlertsCount, 0);
 
-      // Check deduplication
-      const secondEval = await alertManager.evaluateActions(sampleActions);
-      assert.strictEqual(secondEval.newAlertsCount, 0);
+      // Restore paused state
+      alertManager.setPauseYieldFilter(true);
     });
   });
 });

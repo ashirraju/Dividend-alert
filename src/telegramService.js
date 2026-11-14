@@ -74,7 +74,7 @@ class TelegramService {
     const company = normalizeText(alert.stockName || alert.companyFromFeed);
     const hasYield = alert.yieldQ !== null && alert.yieldQ !== undefined;
     const header = hasYield
-      ? `🔔💰 <b>High Dividend Yield Alert: ${alert.yieldQ}%</b>`
+      ? `🔔💰 <b>NSE Dividend Alert (${alert.yieldQ}% Yield)</b>`
       : (alert.isDividend ? '🔔💰 <b>NSE Dividend Alert</b>' : '🔔📢 <b>NSE Corporate Action Alert</b>');
     const publishedAt = formatTimestamp(alert.pubDate || alert.detectedAt, this.timeZone);
 
@@ -87,16 +87,17 @@ class TelegramService {
     }
 
     const details = [];
-    if (hasYield) {
-      details.push(`📈 <b>Dividend Yield:</b> <b>${escapeHtml(String(alert.yieldQ))}%</b> (> ${alert.yieldThreshold || 3}% threshold)`);
-    }
-    if (alert.price !== null && alert.price !== undefined) {
-      details.push(`🏷️ <b>Stock LTP:</b> ₹${escapeHtml(String(alert.price))}`);
-    }
     if (alert.divPerShare !== null && alert.divPerShare !== undefined) {
       details.push(`💰 <b>Dividend:</b> ₹${escapeHtml(String(alert.divPerShare))} per share`);
     } else if (alert.dividendAmount) {
       details.push(`💰 <b>Dividend:</b> ${escapeHtml(alert.dividendAmount)}`);
+    }
+    if (alert.price !== null && alert.price !== undefined) {
+      details.push(`🏷️ <b>Stock LTP:</b> ₹${escapeHtml(String(alert.price))}`);
+    }
+    if (hasYield) {
+      const yieldSuffix = alert.yieldThreshold && !alert.yieldFilterPaused ? ` (> ${alert.yieldThreshold}% threshold)` : '';
+      details.push(`📈 <b>Dividend Yield:</b> <b>${escapeHtml(String(alert.yieldQ))}%</b>${yieldSuffix}`);
     }
     if (alert.exDate) {
       details.push(`📅 <b>Ex-Date:</b> ${escapeHtml(alert.exDate)}`);

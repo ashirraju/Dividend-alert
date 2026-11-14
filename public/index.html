@@ -42,14 +42,14 @@
     <!-- Stats Bar -->
     <section class="stats-grid">
       <div class="stat-card">
-        <span class="stat-label">Yield Filter</span>
-        <div class="stat-value" id="statYieldThreshold">&gt; 3%</div>
-        <span class="stat-desc">Scanning ALL NSE Stocks</span>
+        <span class="stat-label">Alert Filter</span>
+        <div class="stat-value" id="statYieldThreshold">All Dividends</div>
+        <span class="stat-desc">Yield filter paused</span>
       </div>
       <div class="stat-card stat-alert">
-        <span class="stat-label">High-Yield Alerts</span>
+        <span class="stat-label">Dividend Alerts</span>
         <div class="stat-value" id="statAlertsCount">0</div>
-        <span class="stat-desc">Yield &gt; 3% Detected</span>
+        <span class="stat-desc">NSE Corporate Actions</span>
       </div>
       <div class="stat-card">
         <span class="stat-label">Latest Feed Actions</span>
@@ -69,8 +69,8 @@
       <section class="card alerts-card">
         <div class="card-header">
           <div>
-            <h2>🔔 Live High-Yield Dividend Alerts</h2>
-            <span class="card-subtitle">Automatically triggered when (divPerShare / LTP) &times; 100 &gt; 3%</span>
+            <h2>🔔 Live Dividend Alerts</h2>
+            <span class="card-subtitle">Real-time alerts for all dividend announcements (with live LTP &amp; calculated yield)</span>
           </div>
           <div class="header-actions">
             <button id="btnClearAlerts" class="btn btn-secondary btn-sm">Clear Alerts</button>

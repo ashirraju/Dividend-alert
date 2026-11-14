@@ -187,8 +187,8 @@ async function fetchStatus() {
     const res = await fetch('/api/status');
     const data = await res.json();
     if (data.success) {
-      if (statYieldThreshold && data.yieldThreshold !== undefined) {
-        statYieldThreshold.innerText = `> ${data.yieldThreshold}%`;
+      if (statYieldThreshold) {
+        statYieldThreshold.innerText = data.yieldFilterPaused ? 'All Dividends' : `> ${data.yieldThreshold}%`;
       }
       if (data.poller) {
         statPollInterval.innerText = `${Math.round(data.poller.intervalSeconds / 60)}m`;
