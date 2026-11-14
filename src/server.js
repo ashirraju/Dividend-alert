@@ -201,38 +201,74 @@ app.get('/api/telegram/updates', async (req, res) => {
 
 /**
  * POST /api/telegram/test
- * Send a test notification to Telegram bot
+ * Send a test notification to Telegram bot using real feed data or connectivity ping
  */
 app.post('/api/telegram/test', async (req, res) => {
   try {
-    const sampleAlert = {
-      stockSymbol: 'VEDL',
-      stockName: 'Vedanta Limited',
-      isDividend: true,
-      yieldQ: 5.25,
-      yieldThreshold: alertManager.getYieldThreshold(),
-      price: 380.95,
-      divPerShare: 20,
-      dividendAmount: 'RS 20 PER SHARE',
-      purpose: 'INTERIM DIVIDEND - RS 20 PER SHARE',
-      exDate: '25-Nov-2026',
-      recordDate: '25-Nov-2026',
-      series: 'EQ',
-      link: 'https://www.nseindia.com/companies-listing/corporate-filings-actions',
-      pubDate: new Date().toISOString(),
-      detectedAt: new Date().toISOString()
-    };
+    // 1. Check if we already have real detected alerts
+    const existingAlerts = alertManager.getAlerts(1);
+    let targetAlert = existingAlerts[0] || null;
 
-    const result = await telegramService.sendDividendAlert(sampleAlert);
-    if (!result.ok) {
+    // 2. If no alerts in history yet, look for a real dividend announcement in the live feed
+    if (!targetAlert) {
+      let feed = poller.getCachedFeed();
+      if (!feed) {
+        feed = await rssService.getLatestActions();
+      }
+      const dividendAction = feed?.actions?.find(a => a.isDividend);
+      if (dividendAction) {
+        const resolvedStock = stockResolver.resolve(dividendAction.companyName);
+        const symbol = resolvedStock?.symbol || null;
+        let price = null;
+        if (symbol) {
+          try {
+            const priceData = await priceService.getLtp(symbol);
+            price = priceData?.ltp ?? null;
+          } catch (e) {}
+        }
+        let yieldQ = null;
+        if (dividendAction.divPerShare && price && price > 0) {
+          yieldQ = parseFloat(((dividendAction.divPerShare / price) * 100).toFixed(2));
+        }
+
+        targetAlert = {
+          stockSymbol: symbol,
+          stockName: resolvedStock?.companyName || dividendAction.companyName,
+          isDividend: true,
+          yieldQ,
+          price,
+          divPerShare: dividendAction.divPerShare,
+          dividendAmount: dividendAction.dividendAmount,
+          purpose: dividendAction.purpose,
+          exDate: dividendAction.exDate,
+          recordDate: dividendAction.recordDate,
+          series: dividendAction.series,
+          link: dividendAction.link,
+          pubDate: dividendAction.pubDate,
+          detectedAt: new Date().toISOString()
+        };
+      }
+    }
+
+    let result;
+    if (targetAlert) {
+      result = await telegramService.sendDividendAlert(targetAlert);
+    } else {
+      result = await telegramService.sendTelegramMessage(
+        '🔔 <b>NSE Dividend Alert - Connectivity Test</b>\n\nTelegram notifications are active and connected.\n\n📡 <i>Monitoring live NSE Corporate Actions RSS.</i>'
+      );
+    }
+
+    if (result && result.ok === false) {
       return res.status(400).json({
         success: false,
-        error: result.error
+        error: result.error || 'Failed to deliver message'
       });
     }
+
     res.json({
       success: true,
-      message: 'Test alert sent to Telegram successfully.',
+      message: 'Test notification sent to Telegram successfully.',
       result
     });
   } catch (err) {

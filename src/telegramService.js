@@ -213,7 +213,7 @@ class TelegramService {
     } catch (err) {
       let friendlyError = err.message;
       if (err.message.includes('chat not found')) {
-        friendlyError = `Chat ID (${this.chatId}) not found. If this is a Channel or Group, ensure your bot @NseDividendAlert_bot is added to the channel/group as an administrator. If it is a personal chat, send /start to @NseDividendAlert_bot first.`;
+        friendlyError = `Chat ID (${this.chatId}) not found. If this is a Channel or Group, ensure your Telegram bot is added to the channel/group as an administrator. If it is a personal chat, send /start to your bot first.`;
       } else if (err.message.includes('Unauthorized')) {
         friendlyError = 'Invalid Telegram Bot Token. Please check TELEGRAM_BOT_TOKEN from @BotFather.';
       }
